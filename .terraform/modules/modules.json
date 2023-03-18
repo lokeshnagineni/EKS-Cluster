@@ -1,0 +1,1 @@
+{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"eks_cluster","Source":"./modules/EKS","Dir":"modules/EKS"},{"Key":"testenv","Source":"./modules/network","Dir":"modules/network"}]}

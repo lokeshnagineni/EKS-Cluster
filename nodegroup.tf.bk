@@ -1,0 +1,52 @@
+module launch_template {
+  source = "./modules/launch-template"
+
+  name        = "${module.eks_cluster.name}-nodegroup"
+  environment = var.environment
+  keypair     = "eks-keypair"
+
+  instance_type      = "m5.xlarge"
+  security_group_ids = []
+  block_device_mappings = {
+    "xvda" = {
+      kms_key_arn = var.ebs_kms_key
+      iops        = null
+      volume_size = 100
+      volume_type = "gp2"
+    }
+  }
+  tags = {
+    "eks:cluster" = module.eks_cluster.name
+    "test:environment" = var.environment
+  }
+user_data = <<EOF
+#!/bin/bash
+set -ex
+B64_CLUSTER_CA=${cluster_ca}
+API_SERVER_URL=${cluster_endpoint}
+K8S_CLUSTER_DNS_IP=172.20.0.10
+/etc/eks/bootstrap.sh ${module.eks_cluster.name} --kubelet-extra-args '--node-labels=gengo/node-role=${nodegroup_role},eks.amazonaws.com/nodegroup=${module.eks_cluster.name}-nodegroup' --b64-cluster-ca $B64_CLUSTER_CA --apiserver-endpoint $API_SERVER_URL --dns-cluster-ip $K8S_CLUSTER_DNS_IP
+EOF
+}
+
+module eks_nodegroup {
+  source = "./modules/node-group"
+
+  cluster_name       = module.eks_cluster.name
+  name               = "${module.eks_cluster.name}-nodegroup"
+  subnet_ids         = module.testenv.all_private_subnets
+
+  launch_template = {
+    format("%s", module.launch_template.id) = module.launch_template.latest_version
+  }
+  scaling_config = {
+    min_size = 1,
+    max_size = 10
+  }
+  node_labels = {}
+
+  tags = {
+    "eks:cluster" = module.eks_cluster.name
+    "test:environment" = var.environment
+  }
+}
